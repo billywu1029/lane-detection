@@ -21,7 +21,7 @@ ACC_RHO = 2  # number of pixels of precision for each "bin" for the Hough 2D acc
 ACC_THETA = np.pi / 180  # number of radians of precision for each bin in Hough accumulator
 BIN_THRESH = 100  # threshold for minimum number of "votes" for any Hough bin needed to accept the fit line
 MIN_LANE_PIXEL_LEN = 40
-MAX_LANE_PIXEL_GAP = 5  # TODO: Could be the solution for dashed lines!
+MAX_LANE_PIXEL_GAP = 50  # TODO: Could be the solution for dashed lines!
 LINE_DISPLAY_COLOR = (255, 0, 0)  # Blue lines
 LINE_THICCNESS = 5
 OG_IMG_OVERLAY_WEIGHT = 0.8
@@ -86,9 +86,9 @@ if __name__ == "__main__":
     canny_img = canny(lane_img)
     roi_canny = roi(canny_img)
     hough_lines = cv2.HoughLinesP(roi_canny, ACC_RHO, ACC_THETA, BIN_THRESH, np.array([]), MIN_LANE_PIXEL_LEN, MAX_LANE_PIXEL_GAP)
-    avg_lines = avg_fit_lanes(lane_img, hough_lines)
-    hough_img = display_lines(lane_img, avg_lines)
-    # hough_img = display_lines(lane_img, hough_lines)
+    # avg_lines = avg_fit_lanes(lane_img, hough_lines)
+    # hough_img = display_lines(lane_img, avg_lines)
+    hough_img = display_lines(lane_img, hough_lines)
     line_overlay = cv2.addWeighted(lane_img, OG_IMG_OVERLAY_WEIGHT, hough_img, HOUGH_IMG_OVERLAY_WEIGHT, OVERLAY_GAMMA)
     cv2.imshow("result", line_overlay)
     cv2.waitKey(0)
