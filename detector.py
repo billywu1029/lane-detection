@@ -20,8 +20,8 @@ LINE_POLY_ORDER = 1  # Order of the polynomial describing the lane line
 ACC_RHO = 2  # number of pixels of precision for each "bin" for the Hough 2D accumulator array/"grid" of bins
 ACC_THETA = np.pi / 180  # number of radians of precision for each bin in Hough accumulator
 BIN_THRESH = 100  # threshold for minimum number of "votes" for any Hough bin needed to accept the fit line
-MIN_LANE_PIXEL_LEN = 40
-MAX_LANE_PIXEL_GAP = 50  # TODO: Could be the solution for dashed lines!
+MIN_LANE_PIXEL_LEN = 10
+MAX_LANE_PIXEL_GAP = 100  # TODO: Could be the solution for dashed lines!
 LINE_DISPLAY_COLOR = (255, 0, 0)  # Blue lines
 LINE_THICCNESS = 5
 OG_IMG_OVERLAY_WEIGHT = 0.8
@@ -35,10 +35,15 @@ def canny(image):
 
 def roi(image):
     h, w = image.shape[0], image.shape[1]
-    b_left = (0, h)
-    b_right = (w, h)
-    t_left = (ROI_TOP_WIDTH_COEFF * w, ROI_TOP_HEIGHT_COEFF * h)
-    t_right = ((1 - ROI_TOP_WIDTH_COEFF) * w, ROI_TOP_HEIGHT_COEFF * h)
+    # b_left = (0, h)
+    # b_right = (w, h)
+    # t_left = (ROI_TOP_WIDTH_COEFF * w, ROI_TOP_HEIGHT_COEFF * h)
+    # t_right = ((1 - ROI_TOP_WIDTH_COEFF) * w, ROI_TOP_HEIGHT_COEFF * h)
+    # TODO: Dashcam vs standard self-driving camera placement roi bounding box points
+    b_left = (0, h * 0.9)
+    b_right = (w, h * 0.9)
+    t_left = (0.3 * w, 0.47 * h)
+    t_right = (0.7 * w, 0.47 * h)
     points = np.array([[b_left, t_left, t_right, b_right]])
     points = np.int32(points)  # Fix opencv bug requiring cast to 32-bit ints
     mask = np.zeros_like(image)
@@ -79,17 +84,32 @@ def display_lines(image, lines):
             cv2.line(result, (x1, y1), (x2, y2), LINE_DISPLAY_COLOR, LINE_THICCNESS)
     return result
 
+def lane_detect(filename):
+    """Takes in a dashcam video of driving on a straight road and overlays detected lane lines."""
+    video = cv2.VideoCapture(filename)
+    while video.isOpened():
+        _, frame = video.read()
+        lane_img = np.copy(frame)  # Need a copy to avoid aliasing issues mutating og image
+        canny_img = canny(lane_img)
+        roi_canny = roi(canny_img)
+        hough_lines = cv2.HoughLinesP(roi_canny, ACC_RHO, ACC_THETA, BIN_THRESH, np.array([]), MIN_LANE_PIXEL_LEN,
+                                      MAX_LANE_PIXEL_GAP)
+        # avg_lines = avg_fit_lanes(lane_img, hough_lines)
+        # hough_img = display_lines(lane_img, avg_lines)
+        hough_img = display_lines(lane_img, hough_lines)
+        line_overlay = cv2.addWeighted(lane_img, OG_IMG_OVERLAY_WEIGHT, hough_img, HOUGH_IMG_OVERLAY_WEIGHT,
+                                       OVERLAY_GAMMA)
+        cv2.imshow("lane detection frame", line_overlay)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    video.release()
+    cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
-    img = cv2.imread('input.png')
-    lane_img = np.copy(img)  # Need a copy to avoid aliasing issues mutating og image
-    canny_img = canny(lane_img)
-    roi_canny = roi(canny_img)
-    hough_lines = cv2.HoughLinesP(roi_canny, ACC_RHO, ACC_THETA, BIN_THRESH, np.array([]), MIN_LANE_PIXEL_LEN, MAX_LANE_PIXEL_GAP)
-    # avg_lines = avg_fit_lanes(lane_img, hough_lines)
-    # hough_img = display_lines(lane_img, avg_lines)
-    hough_img = display_lines(lane_img, hough_lines)
-    line_overlay = cv2.addWeighted(lane_img, OG_IMG_OVERLAY_WEIGHT, hough_img, HOUGH_IMG_OVERLAY_WEIGHT, OVERLAY_GAMMA)
-    cv2.imshow("result", line_overlay)
-    cv2.waitKey(0)
-    cv2.destroyWindow('result')
+    # Video borrowed from the Comma2K dataset:
+    # https://github.com/commaai/comma2k19/blob/master/Example_1/b0c9d2329ad1606b%7C2018-08-02--08-34-47/40/video.hevc
+    v_file = "video.hevc"
+    lane_detect(v_file)
+
