@@ -84,21 +84,12 @@ def display_lines(image, lines):
             cv2.line(result, (x1, y1), (x2, y2), LINE_DISPLAY_COLOR, LINE_THICCNESS)
     return result
 
-def lane_detect(filename):
+def video_lane_overlay(filename):
     """Takes in a dashcam video of driving on a straight road and overlays detected lane lines."""
     video = cv2.VideoCapture(filename)
     while video.isOpened():
         _, frame = video.read()
-        lane_img = np.copy(frame)  # Need a copy to avoid aliasing issues mutating og image
-        canny_img = canny(lane_img)
-        roi_canny = roi(canny_img)
-        hough_lines = cv2.HoughLinesP(roi_canny, ACC_RHO, ACC_THETA, BIN_THRESH, np.array([]), MIN_LANE_PIXEL_LEN,
-                                      MAX_LANE_PIXEL_GAP)
-        # avg_lines = avg_fit_lanes(lane_img, hough_lines)
-        # hough_img = display_lines(lane_img, avg_lines)
-        hough_img = display_lines(lane_img, hough_lines)
-        line_overlay = cv2.addWeighted(lane_img, OG_IMG_OVERLAY_WEIGHT, hough_img, HOUGH_IMG_OVERLAY_WEIGHT,
-                                       OVERLAY_GAMMA)
+        line_overlay = img_lane_detect(frame)
         cv2.imshow("lane detection frame", line_overlay)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -106,10 +97,22 @@ def lane_detect(filename):
     video.release()
     cv2.destroyAllWindows()
 
+def img_lane_detect(img):
+    lane_img = np.copy(img)  # Need a copy to avoid aliasing issues mutating og image
+    canny_img = canny(lane_img)
+    roi_canny = roi(canny_img)
+    hough_lines = cv2.HoughLinesP(roi_canny, ACC_RHO, ACC_THETA, BIN_THRESH, np.array([]), MIN_LANE_PIXEL_LEN,
+                                  MAX_LANE_PIXEL_GAP)
+    # avg_lines = avg_fit_lanes(lane_img, hough_lines)
+    # hough_img = display_lines(lane_img, avg_lines)
+    hough_img = display_lines(lane_img, hough_lines)
+    line_overlay = cv2.addWeighted(lane_img, OG_IMG_OVERLAY_WEIGHT, hough_img, HOUGH_IMG_OVERLAY_WEIGHT,
+                                   OVERLAY_GAMMA)
+    return line_overlay
 
 if __name__ == "__main__":
     # Video borrowed from the Comma2K dataset:
     # https://github.com/commaai/comma2k19/blob/master/Example_1/b0c9d2329ad1606b%7C2018-08-02--08-34-47/40/video.hevc
     v_file = "video.hevc"
-    lane_detect(v_file)
+    video_lane_overlay(v_file)
 
